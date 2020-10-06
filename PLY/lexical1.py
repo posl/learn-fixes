@@ -1,4 +1,46 @@
 import ply.lex as lex
+import sqlite3
+import argparse
+import csv
+
+parser = argparse.ArgumentParser(description='generate dataset for learn-fixes')
+parser.add_argument('-d', '--dataset', default='./dataset.db', type=str)
+args = parser.parse_args()
+
+dataset = args.dataset
+
+cor_code = []
+err_code = []
+code_list = []
+
+with sqlite3.connect( dataset ) as conn:
+    cursor = conn.cursor()
+
+    pre_code_id     = None
+    pre_user_id     = None
+    pre_prob_id     = None
+    pre_code        = None
+    pre_errorcount  = 0
+
+    for row in cursor.execute( "SELECT DISTINCT code_id, user_id, problem_id, code, errorcount FROM Code ORDER BY user_id ASC, problem_id ASC, code_id ASC;" ):
+        if row[ 0 ] and row[ 1 ] and row[ 2 ] and row[ 3 ]:
+            code_id     = str( row[ 0 ] )
+            user_id     = str( row[ 1 ] )
+            prob_id     = str( row[ 2 ] )
+            code        = str( row[ 3 ] )
+            errorcount  = int( row[ 4 ] )
+
+            if pre_user_id == user_id and pre_prob_id == prob_id and pre_errorcount > 0 and errorcount == 0:
+                cor_code.append( ( code_id, code ) )
+                err_code.append( ( pre_code_id, pre_code ) )
+
+            pre_code_id     = code_id
+            pre_user_id     = user_id
+            pre_prob_id     = prob_id
+            pre_code        = code
+            pre_errorcount  = errorcount
+
+    cursor.close()
 
 reserved = {
     "main"      : "MAIN",
@@ -22,29 +64,57 @@ tokens = [
     "TYPE",
     "METHOD",
     "INT",
+    "FLOAT",
     "OPERATOR",
     "LPAREN",
     "RPAREN",
     "COMMA",
     "SEMICOLON",
     "INCLUDE",
+    "DEFINE",
     "HEADER",
     "COMMENT",
     "CHAR"
 ] + list( reserved.values() )
 
+# List of idioms.
+idioms = {
+"int",
+"printf",
+"i",
+"0",
+"a",
+"x",
+"j",
+"b",
+"1",
+"scanf",
+"char",
+"n",
+"c",
+"argv",
+"2",
+'"%d"',
+"argc",
+"d",
+"const",
+"double"
+}
+
 # Regular expression rules for simple tokens
-t_OPERATOR  = r'[\+\-\*/\=&%]'
+t_OPERATOR  = r'[\+\-\*/\=&%!|:]'
 t_LPAREN    = r'[\(\{\[<]'
 t_RPAREN    = r'[\)\}\]>]'
 t_COMMA     = r','
 t_SEMICOLON = r';'
 t_INT       = r'\d+'
+t_FLOAT     = r'\d+\.\d+'
 t_STRING    = r'\".*\"'
 t_CHAR      = r'\'.*\''
 t_INCLUDE   = r'\#include'
+t_DEFINE    = r'\#define'
 t_HEADER    = r'<.+\.h\s*>'
-t_COMMENT   = r'/\*.*\*/|//.*\n'
+t_COMMENT   = r'/\*[\s\S]*?\*/|//.*'
 
 # A regular expression rule with some action code
 def t_TYPE( t ):
@@ -74,196 +144,84 @@ def t_error( t ):
     t.lexer.skip( 1 )
     # ほんとはスキップしたらまずいけど
 
-# Build the lexer
-lexer = lex.lex()
+me_lis, va_lis, st_lis, ch_lis, in_lis, fl_lis, ty_lis = [], [], [], [], [], [], []
 
-# Test it out
-data = r'''
+def lex_tokenize( data ):
+    # Build the lexer
+    lexer = lex.lex()
 
->>20171025231942-61280
+    # Give the lexer some input
+    lexer.input( data )
 
-#include <stdio.h>
-int main(int argc, const char * argc[])
-{
-  int a;
-  a = 'A';
-  printf("%c\n" , a);
-  return 0;}
+    # Tokenize
+    tokenized = ""
+    global m_lis, v_lis, s_lis, c_lis, i_lis, f_lis, ty_lis
+    while True:
+        tok = lexer.token()
+        if not tok: # No more input
+            break
+        kind = tok.type
+        code = tok.value
+        if code in idioms:
+            tokenized += str( tok.value )
+        else:
+            if kind == "METHOD":
+                if code not in me_lis:
+                    me_lis.append( code )
+                tokenized += "METHOD_" + str( me_lis.index( code ) + 1 )
+            elif kind == "VAR":
+                if code not in va_lis:
+                    va_lis.append( code )
+                tokenized += "VAR_" + str( va_lis.index( code ) + 1 )
+            elif kind == "STRING":
+                if code not in st_lis:
+                    st_lis.append( code )
+                tokenized += "STRING_" + str( st_lis.index( code ) + 1 )
+            elif kind == "CHAR":
+                if code not in ch_lis:
+                    ch_lis.append( code )
+                tokenized += "CHAR_" + str( ch_lis.index( code ) + 1 )
+            elif kind == "INT":
+                if code not in in_lis:
+                    in_lis.append( code )
+                tokenized += "INT_" + str( in_lis.index( code ) + 1 )
+            elif kind == "FLOAT":
+                if code not in fl_lis:
+                    fl_lis.append( code )
+                tokenized += "FLOAT_" + str( fl_lis.index( code ) + 1 )
+            elif kind == "TYPE":
+                if code not in ty_lis:
+                    ty_lis.append( code )
+                tokenized += "TYPE_" + str( ty_lis.index( code ) + 1 )
+            elif kind == "COMMENT":
+                tokenized += "COMMENT"
+            else:
+                tokenized += str( tok.value )
+        tokenized += " "
 
+    return tokenized
 
->>20171026094919-74102
+cor_tokenized_list = []
+err_tokenized_list = []
 
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
- int a;
+for raw_code_id, raw_code in cor_code:
+    cor_tokenized_code = lex_tokenize( raw_code )
+    cor_tokenized_list.append( ( raw_code_id, cor_tokenized_code ) )
 
- a = A;
- printf("%d", &a);
+for raw_code_id, raw_code in err_code:
+    err_tokenized_code = lex_tokenize( raw_code )
+    err_tokenized_list.append( ( raw_code_id, err_tokenized_code ) )
 
- return 0;
- }
+with open( "./fixed.txt", "w" ) as f:
+    for raw_code_id, cor_tokenized_code in cor_tokenized_list:
+        f.write( str( cor_tokenized_code ) + "\n" )
 
+with open( "./buggy.txt", "w" ) as f:
+    for raw_code_id, err_tokenized_code in err_tokenized_list:
+        f.write( str( err_tokenized_code ) + "\n" )
 
->>20171102090729-114189
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-  int a;
-
-  a ='A';
-  printf("%c\n", a);
-
-  return 0;
-}
-
-
->>20171020160358-58669
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-     char a;
-
-     a = 'A';
-     printf("%c \n", a);
-
-     return 0;
-}
-
-
->>20171102101625-127779
-
-#include<stdio.h>
-int main()
-{
-  char a;
-  a='A';
-  printf("%c\n",a);
-
-  return 0;
-}
-
-
-
-
-
-
->>20171102091711-116733
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-  int a,A;
-  a=A
-    printf("%d/n",A);
-  return 0;
-
-
->>20171030013531-57428
-
-#include <stdio.h>
-
-int main(int argc, const char * argv[])
-{
-  char a;
-
-  printf("好きな文字を入力してください：");
-  scanf("%c",&a);
-  printf("あなたが入力した文字は：%c\n", a);
-
-  return 0;
-
-}
-
-
->>20171019095744-117955
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-  char a;
-
-  a = 'A';
-  printf("%c\n", a);
-  return 0;
-}
-
-
->>20171020153256-56112
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-  char a;
-
-  a = 'A'
-    printf("%c\n", a);
-
-  return 0;
-
-
-
->>20171026100909-79123
-
-#include <stdio.h>
-int main(int argc, const char * argv[])
-{
-  char a;
-
-  a='A'
-    printf("%c" , a );
-
-  return 0;
-}
-
-'''
-
-# Give the lexer some input
-lexer.input( data )
-
-# Tokenize
-tokenized = ""
-m_lis, v_lis, s_lis, c_lis, i_lis, f_lis, t_lis = [], [], [], [], [], [], []
-while True:
-    tok = lexer.token()
-    if not tok: # No more input
-        break
-    kind = tok.type
-    code = tok.value
-    if kind == "METHOD":
-        if code not in m_lis:
-            m_lis.append( code )
-        tokenized += "METHOD_" + str( m_lis.index( code ) + 1 )
-    elif kind == "VAR":
-        if code not in v_lis:
-            v_lis.append( code )
-        tokenized += "VAR_" + str( v_lis.index( code ) + 1 )
-    elif kind == "STRING":
-        if code not in s_lis:
-            s_lis.append( code )
-        tokenized += "STRING_" + str( s_lis.index( code ) + 1 )
-    elif kind == "CHAR":
-        if code not in c_lis:
-            c_lis.append( code )
-        tokenized += "CHAR_" + str( c_lis.index( code ) + 1 )
-    elif kind == "INT":
-        if code not in i_lis:
-            i_lis.append( code )
-        tokenized += "INT_" + str( i_lis.index( code ) + 1 )
-    elif kind == "FLOAT":
-        if code not in f_lis:
-            f_lis.append( code )
-        tokenized += "FLOAT_" + str( f_lis.index( code ) + 1 )
-    elif kind == "TYPE":
-        if code not in t_lis:
-            t_lis.append( code )
-        tokenized += "TYPE_" + str( t_lis.index( code ) + 1 )
-    elif kind == "COMMENT":
-        tokenized += "COMMENT"
-    else:
-        tokenized += str( tok.value )
-    tokenized += " "
-
-print( tokenized )
+# i = 0
+# with open( "./lex_result_raw.txt", "w" ) as f:
+#     for raw_code_id, raw_code in code_list:
+#         f.write( str( i ) + str( raw_code ) + "\n" )
+#         i += 1
