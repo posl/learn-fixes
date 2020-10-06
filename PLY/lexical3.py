@@ -77,6 +77,29 @@ tokens = [
     "CHAR"
 ] + list( reserved.values() )
 
+# List of idioms.
+idioms = {
+"int",
+"printf",
+"i",
+"0",
+"a",
+"x",
+"j",
+"1",
+"scanf",
+"char",
+"n",
+"c",
+"argv",
+"2",
+'"%d"',
+"argc",
+"d",
+"const",
+"double"
+}
+
 # Regular expression rules for simple tokens
 t_OPERATOR  = r'[\+\-\*/\=&%!|:]'
 t_LPAREN    = r'[\(\{\[<]'
@@ -138,38 +161,41 @@ def lex_tokenize( data ):
             break
         kind = tok.type
         code = tok.value
-        if kind == "METHOD":
-            if code not in me_lis:
-                me_lis.append( code )
-            tokenized += "METHOD_" + str( me_lis.index( code ) + 1 )
-        elif kind == "VAR":
-            if code not in va_lis:
-                va_lis.append( code )
-            tokenized += "VAR_" + str( va_lis.index( code ) + 1 )
-        elif kind == "STRING":
-            if code not in st_lis:
-                st_lis.append( code )
-            tokenized += "STRING_" + str( st_lis.index( code ) + 1 )
-        elif kind == "CHAR":
-            if code not in ch_lis:
-                ch_lis.append( code )
-            tokenized += "CHAR_" + str( ch_lis.index( code ) + 1 )
-        elif kind == "INT":
-            if code not in in_lis:
-                in_lis.append( code )
-            tokenized += "INT_" + str( in_lis.index( code ) + 1 )
-        elif kind == "FLOAT":
-            if code not in fl_lis:
-                fl_lis.append( code )
-            tokenized += "FLOAT_" + str( fl_lis.index( code ) + 1 )
-        elif kind == "TYPE":
-            if code not in ty_lis:
-                ty_lis.append( code )
-            tokenized += "TYPE_" + str( ty_lis.index( code ) + 1 )
-        elif kind == "COMMENT":
-            tokenized += "COMMENT"
-        else:
+        if code in idioms:
             tokenized += str( tok.value )
+        else:
+            if kind == "METHOD":
+                if code not in me_lis:
+                    me_lis.append( code )
+                tokenized += "METHOD_" + str( me_lis.index( code ) + 1 )
+            elif kind == "VAR":
+                if code not in va_lis:
+                    va_lis.append( code )
+                tokenized += "VAR_" + str( va_lis.index( code ) + 1 )
+            elif kind == "STRING":
+                if code not in st_lis:
+                    st_lis.append( code )
+                tokenized += "STRING_" + str( st_lis.index( code ) + 1 )
+            elif kind == "CHAR":
+                if code not in ch_lis:
+                    ch_lis.append( code )
+                tokenized += "CHAR_" + str( ch_lis.index( code ) + 1 )
+            elif kind == "INT":
+                if code not in in_lis:
+                    in_lis.append( code )
+                tokenized += "INT_" + str( in_lis.index( code ) + 1 )
+            elif kind == "FLOAT":
+                if code not in fl_lis:
+                    fl_lis.append( code )
+                tokenized += "FLOAT_" + str( fl_lis.index( code ) + 1 )
+            elif kind == "TYPE":
+                if code not in ty_lis:
+                    ty_lis.append( code )
+                tokenized += "TYPE_" + str( ty_lis.index( code ) + 1 )
+            elif kind == "COMMENT":
+                tokenized += "COMMENT"
+            else:
+                tokenized += str( tok.value )
         tokenized += " "
 
     return tokenized
