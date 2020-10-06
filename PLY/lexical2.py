@@ -213,7 +213,7 @@ for raw_code_id, raw_code in code_list:
         err_tokenized_code = lex_tokenize( raw_code )
         err_tokenized_list.append( ( raw_code_id, err_tokenized_code ) )
         flag += 1
-    me_lis, va_lis, st_lis, ch_lis, in_lis, fl_lis, ty_lis = [], [], [], [], [], [], []
+        me_lis, va_lis, st_lis, ch_lis, in_lis, fl_lis, ty_lis = [], [], [], [], [], [], []
 
 with open( "./fixed.txt", "w" ) as f:
     for raw_code_id, cor_tokenized_code in cor_tokenized_list:
