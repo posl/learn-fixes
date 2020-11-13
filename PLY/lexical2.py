@@ -2,12 +2,15 @@ import ply.lex as lex
 import sqlite3
 import argparse
 import csv
+import os
 
 parser = argparse.ArgumentParser(description='generate dataset for learn-fixes')
 parser.add_argument('-d', '--dataset', default='./dataset.db', type=str)
+parser.add_argument('-o', '--output', default='', type=str)
 args = parser.parse_args()
 
 dataset = args.dataset
+outdir = args.output
 
 code_list = []
 
@@ -215,11 +218,14 @@ for raw_code_id, raw_code in code_list:
         flag += 1
         me_lis, va_lis, st_lis, ch_lis, in_lis, fl_lis, ty_lis = [], [], [], [], [], [], []
 
-with open( "./fixed.txt", "w" ) as f:
+if not os.path.exists( outdir ):
+    os.makedirs( outdir )
+
+with open( outdir + "./fixed.txt", "w" ) as f:
     for raw_code_id, cor_tokenized_code in cor_tokenized_list:
         f.write( str( cor_tokenized_code ) + "\n" )
 
-with open( "./buggy.txt", "w" ) as f:
+with open( outdir + "./buggy.txt", "w" ) as f:
     for raw_code_id, err_tokenized_code in err_tokenized_list:
         f.write( str( err_tokenized_code ) + "\n" )
 # i = 0
