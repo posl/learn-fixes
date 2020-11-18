@@ -1,5 +1,5 @@
 import argparse
-import os 
+import os
 
 parser = argparse.ArgumentParser(description='make dic from dataset for learn-fixes')
 parser.add_argument('-i', '--in_dir', default='./', type=str)
@@ -35,11 +35,11 @@ if not os.path.exists( out_dir ):
     os.makedirs( out_dir )
 
 with open( out_dir + "/vocab.buggy.txt", "w" ) as f:
-    for w in buggy_dic.keys():
+    for k,v in sorted(buggy_dic.items(), key=lambda x: -x[1]):
         # print( str( w ) + "\t" + str( buggy_dic[ w ] ) )
-        f.write( str( w ) + "\t" + str( buggy_dic[ w ] ) )
+        f.write( str( k ) + "\t" + str( v ) + "\n" )
 
 with open( out_dir + "/vocab.fixed.txt", "w" ) as f:
-    for w in fixed_dic.keys():
+    for k,v in sorted(fixed_dic.items(), key=lambda x: -x[1]):
         # print( str( w ) + "\t" + str( fixed_dic[ w ] ) )
-        f.write( str( w ) + "\t" + str( fixed_dic[ w ] ) )
+        f.write( str( k ) + "\t" + str( v ) + "\n" )
